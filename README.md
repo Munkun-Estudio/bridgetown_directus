@@ -92,11 +92,11 @@ By default, only posts with a status of "published" are fetched from Directus.
 
 Here are features that are planned for future versions of the plugin:
 
-	- [ ]	Support for Additional Content Types: Extend the plugin to handle other Directus collections and custom content types.
-	- [ ]	Custom Field Mapping via DSL: Implement a DSL for more advanced field mapping.
-	- [ ]	Asset Handling: Add functionality to download and manage images and other assets.
-	- [ ]	Caching & Incremental Builds: Implement caching to improve build performance when fetching content.
-	- [ ] Draft Previews: Add support for previewing unpublished (draft) posts.
+- [ ]	Support for Additional Content Types: Extend the plugin to handle other Directus collections and custom content types.
+- [ ]	Custom Field Mapping via DSL: Implement a DSL for more advanced field mapping.
+- [ ]	Asset Handling: Add functionality to download and manage images and other assets.
+- [ ]	Caching & Incremental Builds: Implement caching to improve build performance when fetching content.
+- [ ] Draft Previews: Add support for previewing unpublished (draft) posts.
 
 ## Testing
 
