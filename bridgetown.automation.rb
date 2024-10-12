@@ -7,17 +7,27 @@ auth_token = ask("What's your Directus API auth token? (Leave blank to use ENV['
 # Add the bridgetown_directus gem
 add_gem "bridgetown_directus"
 
-# Append the API URL and Auth Token to the config/initializers.rb file
-append_to_file "config/initializers.rb" do
-  <<~RUBY
+# Add Directus configuration to config/initializers.rb using add_initializer method
+add_initializer "bridgetown_directus", <<~RUBY
 
-    init :bridgetown_directus do
-      api_url "#{api_url}"
-      token "#{auth_token.present? ? auth_token : "<%= ENV['DIRECTUS_AUTH_TOKEN'] %>"}"
+  init :bridgetown_directus do
+    api_url "#{api_url}"
+    token "#{auth_token.present? ? auth_token : "<%= ENV['DIRECTUS_AUTH_TOKEN'] %>"}"
+
+    # Field Mappings (Ensure your Directus collection has these fields)
+    mappings do
+      title "title"           # Required field
+      content "content"       # Required field
+      slug "slug"             # Optional, will be auto-generated if not provided
+      date "date"             # Optional, defaults to the current date/time if not provided
+      category "category"     # Optional
+      excerpt "excerpt"       # Optional, defaults to content excerpt if not provided
+      image "image"           # Optional, URL for the image associated with the post
     end
-  RUBY
-end
+  end
 
-# Finish with a success message
-say_status :directus, "All set! Directus integration is complete. Review your configuration in config/initializers.rb."
-say_status :directus, "You can refer to the plugin documentation for more details on how to customize your Directus integration."
+RUBY
+
+# Success message
+say_status :directus, "Directus integration is complete! Please make sure your Directus collection contains the required fields as specified in the initializer."
+say_status :directus, "Check config/initializers.rb for your Directus setup and adjust mappings if necessary."

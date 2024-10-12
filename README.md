@@ -31,6 +31,17 @@ bundle add "bridgetown_directus"
 init :bridgetown_directus do
   api_url "https://your-directus-instance.com"
   token ENV['DIRECTUS_AUTH_TOKEN'] || "your_token"
+
+  # Required field mappings
+  mappings do
+    title "title"
+    content "content"
+    slug "slug"
+    date "date"
+    category "category"
+    excerpt "excerpt"
+    image "image"
+  end
 end
 ```
 
@@ -49,6 +60,17 @@ export DIRECTUS_AUTH_TOKEN="your-token"
 init :bridgetown_directus do
   api_url "https://your-directus-instance.com"
   token "your_token"
+
+  # Required field mappings
+  mappings do
+    title "title"
+    content "content"
+    slug "slug"
+    date "date"
+    category "category"
+    excerpt "excerpt"
+    image "image"
+  end
 end
 ```
 ## Usage
@@ -57,13 +79,16 @@ Once the plugin is installed and configured, it will fetch posts from your Direc
 
 ### Directus Setup
 
-To use the plugin, ensure that you've set up a **posts** collection in your Directus instance with the following fields:
+To use the plugin, ensure that you’ve set up a collection in your Directus instance with the following fields (you can name the collection anything you like):
 
-- **title**: The title of the post (Text field)
-- **date**: The publish date (Datetime field)
-- **body**: The content of the post (Rich Text or Text field)
-- **slug**: A unique slug for the post (Text field)
-- **status**: The status of the post (Option field, with values like "published", "draft", "archived", etc.)
+-	**title**: The title of the post (Text field)
+-	**content**: The content of the post (Rich Text or Text field)
+-	**slug**: Optional. A unique slug for the post (Text field)
+-	**date**: Optional.The publish date (Datetime field)
+-	**status**: Optional. The status of the post (Option field with values like “published”, “draft”, etc.)
+-	**category**: Optional. The category for the post (Text field)
+-	**excerpt**: Optional. A short excerpt (Text field)
+-	**image**: Optional. An image associated with the post (File/Media field)
 
 Make sure the **status** field uses `"published"` for posts that you want to be visible on your site.
 
