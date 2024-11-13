@@ -12,19 +12,27 @@ module BridgetownDirectus
 
     # Main method to fetch posts
     def fetch_posts
-      Utils.log_directus "Request URL: #{@api_url}/items/#{@site.config.bridgetown_directus.collection}"
+      languages = @site.config.bridgetown_directus.languages || []
+      all_posts = []
 
-      response = connection.get("/items/#{@site.config.bridgetown_directus.collection}") do |req|
-        req.params['filter'] = { status: { _eq: "published" } }.to_json
+      languages.each do |language|
+        Utils.log_directus "Request URL: #{@api_url}/items/#{@site.config.bridgetown_directus.collection} for language: #{language}"
+
+        response = connection.get("/items/#{@site.config.bridgetown_directus.collection}") do |req|
+          req.params['filter'] = { status: { _eq: "published" }, language: { _eq: language } }.to_json
+        end
+
+        if response.success?
+          posts = JSON.parse(response.body)
+          all_posts.concat(posts["data"]) if posts.is_a?(Hash) && posts.key?("data")
+        elsif response.status == 401
+          raise RuntimeError, "Unauthorized access to Directus API"
+        else
+          raise "Error fetching posts: #{response.status} - #{response.body}"
+        end
       end
 
-      if response.success?
-        JSON.parse(response.body)  # Return the parsed posts
-      elsif response.status == 401
-        raise RuntimeError, "Unauthorized access to Directus API"
-      else
-        raise "Error fetching posts: #{response.status} - #{response.body}"
-      end
+      all_posts
     rescue Faraday::TimeoutError
       raise Faraday::TimeoutError, "The request to fetch posts timed out"
     rescue JSON::ParserError
@@ -54,3 +62,4 @@ module BridgetownDirectus
     end
   end
 end
+

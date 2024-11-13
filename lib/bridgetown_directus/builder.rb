@@ -21,42 +21,43 @@ module BridgetownDirectus
     end
 
     def create_documents(posts_data)
-      # Ensure posts_data contains a "data" key and it is an array
-      if posts_data.is_a?(Hash) && posts_data.key?("data") && posts_data["data"].is_a?(Array)
-        posts_array = posts_data["data"]
-      elsif posts_data.is_a?(Array)
-        posts_array = posts_data
-      else
-        raise "Unexpected structure of posts_data: #{posts_data.inspect}"
-      end
+      languages = site.config.bridgetown_directus.languages || []
 
-      posts_array.each_with_index do |post, index|
+      languages.each do |language|
+        Utils.log_directus "Processing posts for language: #{language}"
 
-        # Fallback to slugify if no slug is provided
-        slug = post["slug"] || Bridgetown::Utils.slugify(post["title"])
-        date = post["date"] || Time.now.iso8601
+        # Filter posts for the current language
+        language_posts = posts_data.select { |post| post["language"] == language }
 
-        # Construct the image URL if the image ID is present
-        image = post["image"]
-        image = image ? "#{site.config.bridgetown_directus.api_url}/assets/#{image}" : nil
+        language_posts.each_with_index do |post, index|
+          # Fallback to slugify if no slug is provided
+          slug = post["slug"] || Bridgetown::Utils.slugify(post["title"])
+          date = post["date"] || Time.now.iso8601
 
-        begin
-          add_resource :posts, "#{slug}.md" do
-            layout "post"
-            title post["title"]
-            content post["body"] # Make sure content is directly from post["body"]
-            date date
-            category post["category"]
-            excerpt post["excerpt"]
-            image image
+          # Construct the image URL if the image ID is present
+          image = post["image"]
+          image = image ? "#{site.config.bridgetown_directus.api_url}/assets/#{image}" : nil
+
+          begin
+            add_resource :posts, "#{language}/#{slug}.md" do
+              layout "post"
+              title post["title"]
+              content post["body"] # Make sure content is directly from post["body"]
+              date date
+              category post["category"]
+              excerpt post["excerpt"]
+              image image
+              lang language
+            end
+          rescue => e
+            Utils.log_directus "Error processing post at index #{index} for language #{language}: #{e.message}"
+            raise e
           end
-        rescue => e
-          Utils.log_directus "Error processing post at index #{index}: #{e.message}"
-          raise e
         end
-      end
 
-      Utils.log_directus "Finished generating #{posts_array.size} posts."
+        Utils.log_directus "Finished generating #{language_posts.size} posts for language: #{language}."
+      end
     end
   end
 end
+

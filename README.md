@@ -47,6 +47,47 @@ end
 
 ## Configuration
 
+### Multilanguage Support
+
+To enable multilanguage support, you need to configure the plugin to specify the languages you want to support. This can be done during the setup process or manually in your initializer file.
+
+1. **Setup Languages in Initializer:**
+
+   When configuring the plugin, you can specify the languages as follows:
+
+   ```ruby
+   init :bridgetown_directus do
+     api_url "https://your-directus-instance.com"
+     token ENV['DIRECTUS_AUTH_TOKEN'] || "your_token"
+
+     # Specify supported languages
+     languages ["en", "es", "fr"] # Add your desired language codes
+
+     # Required field mappings
+     mappings do
+       title "title"
+       content "content"
+       slug "slug"
+       date "date"
+       category "category"
+       excerpt "excerpt"
+       image "image"
+     end
+   end
+   ```
+
+2. **Modify Directus Collections:**
+
+   Ensure your Directus collections have language-specific fields. For example, you might have fields like `title_en`, `title_es`, etc., for each language you support. The plugin will fetch and process posts for each specified language.
+
+3. **Handling Multilanguage Content:**
+
+   During the build process, the plugin will fetch posts for each language and generate separate resources. These resources will be available in your site under language-specific paths, such as `/en/posts/`, `/es/posts/`, etc.
+
+4. **Accessing Multilanguage Content:**
+
+   You can access the multilanguage content in your templates or layouts by referencing the language-specific paths or using the `lang` attribute added to each resource.
+
 To configure the plugin:
 
 1.	You can either use environment variables for the API URL and token:
@@ -136,3 +177,4 @@ We welcome contributions to this project! To contribute:
 3. Make your changes
 4. Push to the branch (git push origin feature-branch)
 5. Open a Pull Request
+

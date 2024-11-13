@@ -8,12 +8,13 @@ require_relative "bridgetown_directus/builder"
 
 module BridgetownDirectus
   # Bridgetown initializer for the plugin
-  Bridgetown.initializer :bridgetown_directus do |config, api_url:, token:, collection:, mappings:|
+  Bridgetown.initializer :bridgetown_directus do |config, api_url:, token:, collection:, mappings:, languages:|
     config.bridgetown_directus ||= {}
     config.bridgetown_directus.api_url ||= api_url || ENV.fetch("DIRECTUS_API_URL")
     config.bridgetown_directus.token ||= token || ENV.fetch("DIRECTUS_API_TOKEN")
     config.bridgetown_directus.collection ||= collection
     config.bridgetown_directus.mappings ||= mappings
+    config.bridgetown_directus.languages ||= languages
 
     # Register the builder
     config.builder BridgetownDirectus::Builder
@@ -25,3 +26,4 @@ module BridgetownDirectus
     end
   end
 end
+
