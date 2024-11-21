@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 module BridgetownDirectus
   class Builder < Bridgetown::Builder
     def build
@@ -30,33 +28,76 @@ module BridgetownDirectus
         raise "Unexpected structure of posts_data: #{posts_data.inspect}"
       end
 
-      posts_array.each_with_index do |post, index|
+      created_posts = 0
+      posts_array.each do |post|
+        if translations_enabled?
+          created_posts += create_translated_posts(post)
+        else
+          created_posts += create_single_post(post)
+        end
+      end
 
-        # Fallback to slugify if no slug is provided
-        slug = post["slug"] || Bridgetown::Utils.slugify(post["title"])
-        date = post["date"] || Time.now.iso8601
+      Utils.log_directus "Finished generating #{created_posts} posts."
+    end
 
-        # Construct the image URL if the image ID is present
-        image = post["image"]
-        image = image ? "#{site.config.bridgetown_directus.api_url}/assets/#{image}" : nil
+    def translations_enabled?
+      site.config.dig("directus", "translations", "enabled") == true
+    end
+
+    def create_single_post(post)
+      slug = post["slug"] || Bridgetown::Utils.slugify(post["title"])
+      api_url = site.config.dig("directus", "api_url")
+
+      begin
+        add_resource :posts, "#{slug}.md" do
+          layout "post"
+          title post["title"]
+          content post["body"]
+          date post["date"] || Time.now.iso8601
+          category post["category"]
+          excerpt post["excerpt"]
+          image post["image"] ? "#{api_url}/assets/#{post['image']}" : nil
+        end
+        1
+      rescue => e
+        Utils.log_directus "Error creating post #{slug}: #{e.message}"
+        0
+      end
+    end
+
+    def create_translated_posts(post)
+      posts_created = 0
+      translations = post["translations"] || []
+
+      translations.each do |translation|
+        lang_code = translation["languages_code"].split("-").first.downcase
+        bridgetown_locale = lang_code.to_sym
+        
+        next unless site.config["available_locales"].include?(bridgetown_locale)
+
+        slug = translation["slug"] || Bridgetown::Utils.slugify(translation["title"])
+        api_url = site.config.dig("directus", "api_url")
 
         begin
           add_resource :posts, "#{slug}.md" do
             layout "post"
-            title post["title"]
-            content post["body"] # Make sure content is directly from post["body"]
-            date date
+            title translation["title"]
+            content translation["body"]
+            date post["date"] || Time.now.iso8601
             category post["category"]
-            excerpt post["excerpt"]
-            image image
+            excerpt translation["excerpt"]
+            image post["image"] ? "#{api_url}/assets/#{post['image']}" : nil
+            locale bridgetown_locale
+            translations translations
           end
+
+          posts_created += 1
         rescue => e
-          Utils.log_directus "Error processing post at index #{index}: #{e.message}"
-          raise e
+          Utils.log_directus "Error creating post #{slug} for locale #{bridgetown_locale}: #{e.message}"
         end
       end
 
-      Utils.log_directus "Finished generating #{posts_array.size} posts."
+      posts_created
     end
   end
 end

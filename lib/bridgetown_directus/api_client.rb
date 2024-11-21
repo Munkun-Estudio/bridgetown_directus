@@ -16,6 +16,7 @@ module BridgetownDirectus
 
       response = connection.get("/items/#{@site.config.bridgetown_directus.collection}") do |req|
         req.params['filter'] = { status: { _eq: "published" } }.to_json
+        req.params['fields'] = '*,translations.*'
       end
 
       if response.success?
@@ -49,7 +50,7 @@ module BridgetownDirectus
       elsif posts_data.is_a?(Array)
         posts_data
       else
-        raise "Unexpected structure of posts_data: #{posts_data.inspect}"
+        raise "Invalid posts data structure: #{posts_data.inspect}"
       end
     end
   end

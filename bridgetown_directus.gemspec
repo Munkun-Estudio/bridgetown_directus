@@ -15,6 +15,13 @@ Gem::Specification.new do |spec|
   spec.test_files    = spec.files.grep(%r!^test/!)
   spec.require_paths = ["lib"]
 
+  spec.metadata         = {
+      "source_code_uri" => spec.homepage,
+      "bug_tracker_uri" => "#{spec.homepage}/issues",
+      "changelog_uri"   => "#{spec.homepage}/releases",
+      "homepage_uri"    => spec.homepage
+  }
+
   spec.required_ruby_version = ">= 2.7.0"
 
   spec.add_dependency "bridgetown", ">= 1.2.0", "< 2.0"
