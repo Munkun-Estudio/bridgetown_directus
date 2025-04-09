@@ -1,0 +1,19 @@
+# Example Bridgetown configuration file for the enhanced Directus plugin
+
+# Site settings
+title: My Bridgetown Site with Directus
+email: your-email@example.com
+description: >-
+  A Bridgetown site powered by Directus headless CMS
+baseurl: ""
+url: ""
+
+# Available locales for the site
+available_locales: [en, es, fr]
+default_locale: en
+
+# Bridgetown Directus plugin configuration
+# This will be used in config/initializers.rb
+directus:
+  api_url: "https://your-directus-instance.com"
+  token: <%= ENV["DIRECTUS_API_TOKEN"] %>

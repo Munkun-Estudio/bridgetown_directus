@@ -32,7 +32,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "rubocop-bridgetown", "~> 0.3"
   spec.add_development_dependency "shoulda", "~> 3.0"
   spec.add_development_dependency "minitest", "~> 5.0"
-  spec.add_development_dependency "minitest-profile", "~> 0.5"
+  spec.add_development_dependency "minitest-profile", "~> 0.0.2"
   spec.add_development_dependency "minitest-reporters", "~> 1.0"
   spec.add_development_dependency "webmock", "~> 3.0"
 end

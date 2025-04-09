@@ -6,8 +6,11 @@ This Bridgetown plugin integrates with [Directus](https://directus.io/), which i
 
 ## Features
 
-- Fetch **published posts** from Directus during the build process
+- Fetch content from **multiple Directus collections** during the build process
+- Support for **flexible field mapping** with custom converters
 - Support for **multilingual content** through Directus translations
+- Advanced **filtering, sorting, and pagination** options
+- Support for different **resource types** (posts, pages, collections, data)
 
 ## Installation
 
@@ -23,7 +26,7 @@ Before installing the plugin make sure you have an [Auth Token](https://docs.dir
 
 2. The setup will guide you through:
    - Providing the Directus API URL and Auth Token
-   - Specifying your content collection name
+   - Configuring your collections and field mappings
    - Enabling/disabling translations support
    - Configuring translatable fields (if translations enabled)
 
@@ -36,139 +39,200 @@ Before installing the plugin make sure you have an [Auth Token](https://docs.dir
    ```
 
 2. Run bundle install to install the gem.
-3. Add the plugin configuration to your config/initializers.rb file:
-
-   ```ruby
-   init :"bridgetown_directus" do
-     api_url "https://your-directus-instance.com"
-     token ENV['DIRECTUS_AUTH_TOKEN'] || "your_token"
-     collection config.directus["collection"]
-     mappings config.directus["mappings"]
-   end
-   ```
-
-4. Configure your bridgetown.config.yml:
-
-   ```yaml
-   directus:
-     collection: "posts"
-     mappings:
-       title: "title"           # Required field
-       content: "body"          # Required field
-       slug: "slug"             # Optional, will be auto-generated if not provided
-       date: "date"             # Optional, defaults to current date/time if not provided
-       category: "category"     # Optional
-       excerpt: "excerpt"       # Optional, defaults to content excerpt if not provided
-       image: "image"           # Optional, URL for the image associated with the post
-     translations:
-       enabled: false          # Set to true for multilingual support
-       fields:                 # Only required if translations are enabled
-         - title
-         - excerpt
-         - body
-   ```
+3. Add the plugin configuration to your config/initializers.rb file (see Configuration section below).
 
 ## Configuration
 
 ### Basic Configuration
 
-You can configure the plugin either through environment variables or direct configuration:
+The plugin now uses a more flexible configuration approach that allows you to map multiple collections with custom field mappings:
 
-1. Using environment variables:
+```ruby
+# config/initializers.rb
+init :"bridgetown_directus" do |directus|
+  # Set API credentials (these can also come from environment variables)
+  directus.api_url = ENV["DIRECTUS_API_URL"] || "https://your-directus-instance.com"
+  directus.token = ENV["DIRECTUS_API_TOKEN"] || "your-token"
+  
+  # Configure collections
+  directus.register_collection(:posts) do |c|
+    c.endpoint = "articles"  # The Directus collection name
+    c.resource_type = :posts # The Bridgetown resource type
+    c.layout = "post"        # The layout to use for these resources
+    
+    # Define field mappings with optional converters
+    c.field :title, "title"
+    c.field :content, "body"
+    c.field :date, "published_at" do |value|
+      value ? Time.parse(value).iso8601 : Time.now.iso8601
+    end
+    c.field :slug, "slug" do |value|
+      value || "post-#{SecureRandom.hex(4)}"
+    end
+    
+    # Set default query parameters
+    c.default_query = { 
+      filter: { status: { _eq: "published" } },
+      sort: "-published_at"
+    }
+    
+    # Enable translations for specific fields
+    c.enable_translations([:title, :content, :excerpt, :slug])
+  end
+  
+  # You can register multiple collections
+  directus.register_collection(:projects) do |c|
+    # Configuration for projects collection
+    # ...
+  end
+end
+```
 
-   ```bash
-   export DIRECTUS_API_URL="https://your-directus-instance.com"
-   export DIRECTUS_AUTH_TOKEN="your-token"
-   ```
+### Field Mapping Options
 
-2. Or through bridgetown.config.yml as shown in the installation section.
+The plugin provides a flexible way to map Directus fields to Bridgetown resource attributes:
+
+```ruby
+# Simple field mapping
+c.field :title, "title"
+
+# Field mapping with a converter
+c.field :date, "published_at" do |value|
+  value ? Time.parse(value).iso8601 : Time.now.iso8601
+end
+
+# Field mapping with default value
+c.field :category, "category" do |value|
+  value || "Uncategorized"
+end
+
+# Field mapping with transformation
+c.field :image, "featured_image" do |value|
+  value ? "#{config.directus.api_url}/assets/#{value}" : nil
+end
+```
 
 ### Translations Configuration
 
 To enable multilingual support:
 
-1. In your bridgetown.config.yml, set translations.enabled to true:
+```ruby
+# Enable translations for specific fields
+c.enable_translations([:title, :content, :excerpt, :slug])
+```
 
-   ```yaml
-   directus:
-     # ... other config ...
-     translations:
-       enabled: true
-       fields:
-         - title
-         - excerpt
-         - body
-   ```
+Make sure your Bridgetown site has the available locales configured:
 
-2. Ensure your Directus collection has translations enabled and configured for the specified fields.
+```yaml
+# bridgetown.config.yml
+available_locales: [en, es, fr]
+default_locale: en
+```
 
-3. The plugin will automatically:
+### Advanced Querying
 
-- Generate posts for each available language
-- Create appropriate URLs based on locale
-- Handle fallback content if translations are missing
+You can specify default query parameters for each collection:
+
+```ruby
+c.default_query = { 
+  filter: { 
+    status: { _eq: "published" },
+    category: { _in: ["news", "blog"] }
+  },
+  sort: "-published_at",
+  limit: 10
+}
+```
 
 ## Usage
 
-Once the plugin is installed and configured, it will fetch posts from your Directus instance during each build. These posts will be generated as in-memory resources, meaning they are not written to disk but are treated as normal posts by Bridgetown.
+Once the plugin is installed and configured, it will fetch content from your Directus collections during each build. These items will be generated as in-memory resources, meaning they are not written to disk but are treated as normal resources by Bridgetown.
 
 ### Directus Setup
 
-#### Basic Collection Setup
+#### Collection Setup
 
-Create a collection in your Directus instance with these fields:
+Create collections in your Directus instance with the fields you need. Make sure to:
 
-- **title**: The title of the post (Text field)
-- **body**: The content of the post (Rich Text or Text field)
-- **slug**: Optional. A unique slug for the post (Text field)
-- **date**: Optional. The publish date (Datetime field)
-- **status**: Optional. The status of the post (Option field with values like "published", "draft", etc.)
-- **category**: Optional. The category for the post (Text field)
-- **excerpt**: Optional. A short excerpt (Text field)
-- **image**: Optional. An image associated with the post (File/Media field)
-
-Make sure the **status** field uses `"published"` for posts that you want to be visible on your site.
+- Set up appropriate permissions for the API token you're using
+- Configure status fields if you want to filter by publication status
+- Set up translations if you need multilingual support
 
 #### Image Permissions
 
-If your posts contain images, and you want to display them in your Bridgetown site, you'll need to ensure that the **directus_files** collection has the appropriate permissions for public access.
+If your content contains images, ensure that the **directus_files** collection has the appropriate permissions for public access:
 
-1. **Public Role Configuration:**
-   - In Directus, navigate to **Settings** > **Roles & Permissions**.
-   - Select the **Public** role (or create a custom role if needed).
-   - Under the **Collections** tab, locate the **directus_files** collection.
-   - Set the **read** permission to **enabled** so that the images can be accessed publicly.
+1. In Directus, navigate to **Settings** > **Roles & Permissions**
+2. Select the **Public** role (or create a custom role if needed)
+3. Under the **Collections** tab, locate the **directus_files** collection
+4. Set the **read** permission to **enabled** so that the images can be accessed publicly
 
-2. **Image Uploads and Management:**
-   - When users upload images to posts, ensure that the images are associated with the **directus_files** collection.
-   - By default, Directus will store image URLs, which the plugin can reference directly. Ensure that the **image** field or URL is added to the **body** field (or wherever applicable).
+## Examples
 
-### Fetching Posts
+### Multiple Collections Example
 
-Posts are fetched from Directus during each build and treated as Bridgetown resources. These resources are available in your site just like regular posts, and you can access them through your templates or layouts.
-
-By default, only posts with a status of "published" are fetched from Directus.
+```ruby
+# config/initializers.rb
+init :"bridgetown_directus" do |directus|
+  # Blog posts collection
+  directus.register_collection(:posts) do |c|
+    c.endpoint = "articles"
+    c.resource_type = :posts
+    c.layout = "post"
+    
+    c.field :title, "title"
+    c.field :content, "body"
+    c.field :date, "published_at"
+    c.field :slug, "slug"
+    
+    c.default_query = { filter: { status: { _eq: "published" } } }
+  end
+  
+  # Projects collection
+  directus.register_collection(:projects) do |c|
+    c.endpoint = "projects"
+    c.resource_type = :collections
+    c.layout = "project"
+    
+    c.field :title, "name"
+    c.field :content, "description"
+    c.field :client, "client"
+    c.field :year, "year"
+    
+    c.default_query = { sort: "year.desc" }
+  end
+  
+  # Team members collection
+  directus.register_collection(:team) do |c|
+    c.endpoint = "team_members"
+    c.resource_type = :data
+    
+    c.field :name, "full_name"
+    c.field :position, "job_title"
+    c.field :bio, "biography"
+    
+    c.default_query = { filter: { active: { _eq: true } } }
+  end
+end
+```
 
 ## TODO List
 
 Here are features that are planned for future versions of the plugin:
 
-- [ ] Support for Additional Content Types: Extend the plugin to handle other Directus collections and custom content types.
-- [ ] Custom Field Mapping via DSL: Implement a DSL for more advanced field mapping.
-- [ ] Asset Handling: Add functionality to download and manage images and other assets.
-- [ ] Caching & Incremental Builds: Implement caching to improve build performance when fetching content.
-- [ ] Draft Previews: Add support for previewing unpublished (draft) posts.
-
-## Testing
-
-Testing isn't fully set up yet, but contributions and improvements are welcome.
+- [ ] Relationship Resolution: Add support for resolving relationships between collections
+- [ ] Real-time Data: Add support for real-time updates via WebSockets
+- [ ] Asset Management: Add functionality to download and manage images and other assets
+- [ ] Caching & Incremental Builds: Implement caching to improve build performance
+- [ ] Schema Introspection: Add optional schema introspection to validate mappings
 
 ## Contributing
 
 We welcome contributions! To contribute:
 
 1. Fork the repository
-2. Create a new branch (git checkout -b feature-branch)
+2. Create a new branch (`git checkout -b feature-branch`)
 3. Make your changes
-4. Push to the branch (git push origin feature-branch)
-5. Open a Pull Request
+4. Run the tests (`bundle exec rake test`)
+5. Push to the branch (`git push origin feature-branch`)
+6. Open a Pull Request
