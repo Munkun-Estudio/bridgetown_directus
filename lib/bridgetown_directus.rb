@@ -10,36 +10,30 @@ require_relative "bridgetown_directus/builder"
 module BridgetownDirectus
   # Bridgetown initializer for the plugin
   Bridgetown.initializer :bridgetown_directus do |config|
-    # Create a new configuration instance
-    config.bridgetown_directus = Configuration.new
-    
-    # Set API credentials from environment variables if not provided
-    config.bridgetown_directus.api_url = ENV.fetch("DIRECTUS_API_URL", nil)
-    config.bridgetown_directus.token = ENV.fetch("DIRECTUS_API_TOKEN", nil)
-    
+    # Only assign config.bridgetown_directus if not already set
+    config.bridgetown_directus ||= Configuration.new
+
+    # Set up configuration directly (leave to user initializer if possible)
+    config.bridgetown_directus.api_url ||= ENV["DIRECTUS_API_URL"] || "[https://studio.munkun.com](https://studio.munkun.com)"
+    config.bridgetown_directus.token ||= ENV["DIRECTUS_TOKEN"] || "t1P6YstcUslmf-KJFbc6Kyg0bomMxkXY"
+
     # Register the builder
     config.builder BridgetownDirectus::Builder
-    
-    # Allow for configuration via a block
-    yield config.bridgetown_directus if block_given?
-    
-    # Validate Directus config before proceeding
-    unless config.bridgetown_directus.api_url && config.bridgetown_directus.token
-      Bridgetown.logger.error "Invalid Directus configuration detected. Please check your API URL and token."
-      raise "Directus configuration invalid"
-    end
-    
-    # Log configuration status
-    collection_count = config.bridgetown_directus.collections.size
-    if collection_count > 0
-      Bridgetown.logger.info "Directus: Configured #{collection_count} collections"
-    else
-      Bridgetown.logger.warn "Directus: No collections configured"
-    end
   end
-  
-  # Add helper methods to Configuration class
+
   class Configuration
     attr_accessor :api_url, :token
+    attr_reader :collections
+
+    def initialize
+      @collections = {}
+    end
+
+    def register_collection(name, &block)
+      collection = CollectionConfig.new(name)
+      collection.instance_eval(&block) if block_given?
+      @collections[name] = collection
+      collection
+    end
   end
 end

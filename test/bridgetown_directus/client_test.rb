@@ -45,10 +45,8 @@ module BridgetownDirectus
         )
 
       response = @client.fetch_collection("posts")
-      
-      assert_equal 200, response["status"] if response.key?("status")
-      assert response.key?("data")
-      assert_equal 1, response["data"].first["id"] if response["data"].is_a?(Array)
+      assert response.is_a?(Array)
+      assert_equal 1, response.first["id"]
     end
 
     def test_fetch_collection_with_params
@@ -58,9 +56,7 @@ module BridgetownDirectus
             'Authorization' => "Bearer #{@token}",
             'Content-Type' => 'application/json'
           },
-          query: {
-            'filter' => '{"status":{"_eq":"published"}}'
-          }
+          query: hash_including("filter" => { "status" => { "_eq" => "published" } })
         )
         .to_return(
           status: 200,
@@ -69,9 +65,8 @@ module BridgetownDirectus
         )
 
       response = @client.fetch_collection("posts", { filter: { status: { _eq: "published" } } })
-      
-      assert response.key?("data")
-      assert_equal "Published Post", response["data"].first["title"] if response["data"].is_a?(Array)
+      assert response.is_a?(Array)
+      assert_equal "Published Post", response.first["title"]
     end
 
     def test_fetch_item
@@ -89,10 +84,9 @@ module BridgetownDirectus
         )
 
       response = @client.fetch_item("posts", 1)
-      
-      assert response.key?("data")
-      assert_equal 1, response["data"]["id"]
-      assert_equal "Test Post", response["data"]["title"]
+      assert response.is_a?(Hash)
+      assert_equal 1, response["id"]
+      assert_equal "Test Post", response["title"]
     end
 
     def test_unauthorized_error
@@ -115,8 +109,6 @@ module BridgetownDirectus
       error = assert_raises do
         @client.fetch_collection("posts")
       end
-      
-      # WebMock's to_timeout can raise either TimeoutError or ConnectionFailed
       assert [Faraday::TimeoutError, Faraday::ConnectionFailed].include?(error.class),
              "Expected a timeout error but got #{error.class.name}"
     end

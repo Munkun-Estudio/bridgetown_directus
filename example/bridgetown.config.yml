@@ -12,8 +12,3 @@ url: ""
 available_locales: [en, es, fr]
 default_locale: en
 
-# Bridgetown Directus plugin configuration
-# This will be used in config/initializers.rb
-directus:
-  api_url: "https://your-directus-instance.com"
-  token: <%= ENV["DIRECTUS_API_TOKEN"] %>

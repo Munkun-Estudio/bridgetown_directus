@@ -1,20 +1,24 @@
-# Example initializers.rb file for the enhanced Directus plugin
+# frozen_string_literal: true
 
-# Initialize the Bridgetown Directus plugin with a more flexible configuration
-init :bridgetown_directus do |directus|
-  # Set API credentials (these can also come from environment variables)
-  directus.api_url = config.directus.api_url
-  directus.token = config.directus.token
+# Example Bridgetown Directus plugin initializer for v2+
+#
+# All Directus configuration is now handled here, NOT in bridgetown.config.yml.
+# Use ENV variables for secrets and API credentials.
 
-  # Configure collections
+require "securerandom"
+require "time"
 
-  # Blog posts collection
+init :bridgetown_directus do |directus| # rubocop:disable Metrics/BlockLength
+  # Set API credentials from environment variables
+  directus.api_url = ENV["DIRECTUS_API_URL"] || "https://your-directus-instance.com"
+  directus.token = ENV["DIRECTUS_API_TOKEN"] || "your-token-here"
+
+  # Blog posts collection example
   directus.register_collection(:posts) do |c|
-    c.endpoint = "articles"  # The Directus collection name
-    c.resource_type = :posts # The Bridgetown resource type
-    c.layout = "post"        # The layout to use for these resources
+    c.endpoint = "articles"
+    c.resource_type = :posts
+    c.layout = "post"
 
-    # Define field mappings with optional converters
     c.field :title, "title"
     c.field :content, "body"
     c.field :date, "published_at" do |value|
@@ -28,7 +32,7 @@ init :bridgetown_directus do |directus|
     end
     c.field :category, "category"
     c.field :image, "featured_image" do |value|
-      value ? "#{config.directus.api_url}/assets/#{value}" : nil
+      value ? "#{ENV["DIRECTUS_API_URL"] || "https://your-directus-instance.com"}/assets/#{value}" : nil # rubocop:disable Layout/LineLength
     end
 
     # Set default query parameters
@@ -41,52 +45,20 @@ init :bridgetown_directus do |directus|
     c.enable_translations([:title, :content, :excerpt, :slug])
   end
 
-  # Projects collection
-  directus.register_collection(:projects) do |c|
-    c.endpoint = "projects"
-    c.resource_type = :collections
-    c.layout = "project"
-
-    # Define field mappings
-    c.field :title, "name"
-    c.field :content, "description"
-    c.field :client, "client"
-    c.field :year, "year"
-    c.field :technologies, "technologies"
-    c.field :image, "cover_image" do |value|
-      value ? "#{config.directus.api_url}/assets/#{value}" : nil
-    end
-    c.field :gallery, "gallery" do |value|
-      # Convert gallery items to full URLs
-      if value.is_a?(Array)
-        value.map { |img| "#{config.directus.api_url}/assets/#{img}" }
-      else
-        []
-      end
-    end
-
-    # Set default query parameters
-    c.default_query = {
-      filter: { status: { _eq: "published" } },
-      sort: "year.desc",
-    }
-  end
-
-  # Team members collection
+  # Team members collection example
   directus.register_collection(:team) do |c|
     c.endpoint = "team_members"
-    c.resource_type = :data
+    c.resource_type = :team
+    c.layout = "team_member"
 
-    # Define field mappings
     c.field :name, "full_name"
     c.field :position, "job_title"
     c.field :bio, "biography"
     c.field :photo, "photo" do |value|
-      value ? "#{config.directus.api_url}/assets/#{value}" : nil
+      value ? "#{ENV["DIRECTUS_API_URL"] || "https://your-directus-instance.com"}/assets/#{value}" : nil # rubocop:disable Layout/LineLength
     end
     c.field :social_links, "social_links"
 
-    # Set default query parameters
     c.default_query = {
       filter: { active: { _eq: true } },
       sort: "sort_order",

@@ -4,6 +4,7 @@ module BridgetownDirectus
   # Configuration module for Bridgetown Directus plugin
   class Configuration
     attr_reader :collections
+    attr_accessor :api_url, :token
 
     def initialize
       @collections = {}
@@ -29,8 +30,7 @@ module BridgetownDirectus
 
     # Collection configuration class
     class CollectionConfig
-      attr_reader :name, :endpoint, :fields, :default_query, :resource_type, :layout
-      attr_accessor :translations_enabled, :translatable_fields
+      attr_reader :name
 
       # Initialize a new collection configuration
       # @param name [Symbol] The name of the collection
@@ -42,17 +42,12 @@ module BridgetownDirectus
         @layout = "post"
         @translations_enabled = false
         @translatable_fields = []
+        @endpoint = nil
       end
 
-      # Set the Directus endpoint for this collection
-      # @param endpoint [String] The endpoint name in Directus
-      # @return [void]
-      attr_accessor :endpoint
-
-      # Set the fields mapping for this collection
-      # @param fields [Hash] A hash mapping Bridgetown field names to Directus field names
-      # @return [void]
-      attr_accessor :fields
+      # Set up accessors for collection configuration properties
+      attr_accessor :endpoint, :fields, :default_query, :resource_type, :layout,
+                    :translations_enabled, :translatable_fields
 
       # Define a field mapping with optional converter
       # @param bridgetown_field [Symbol] The field name in Bridgetown
@@ -66,27 +61,21 @@ module BridgetownDirectus
         }
       end
 
-      # Set the default query parameters for this collection
-      # @param query [Hash] The default query parameters
-      # @return [void]
-      attr_accessor :default_query
-
-      # Set the resource type for this collection
-      # @param type [Symbol] The resource type (e.g., :posts, :pages, :collections)
-      # @return [void]
-      attr_accessor :resource_type
-
-      # Set the layout for this collection
-      # @param layout [String] The layout name
-      # @return [void]
-      attr_accessor :layout
-
       # Enable translations for this collection
       # @param fields [Array<Symbol>] The fields that should be translated
       # @return [void]
       def enable_translations(fields = [])
         @translations_enabled = true
         @translatable_fields = fields
+      end
+
+      # Generate the resource path for a given item
+      # @param item [Hash] The data item from Directus
+      # @return [String] The resource path
+      def path(item)
+        # Default: /:resource_type/:slug/index.html
+        slug = item["slug"] || item[:slug] || item["id"] || item[:id]
+        "/#{resource_type}/#{slug}/index.html"
       end
     end
   end
