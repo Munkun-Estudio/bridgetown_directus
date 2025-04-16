@@ -26,7 +26,7 @@ Before installing the plugin, make sure you have an [Auth Token](https://docs.di
 
    This will:
    - Prompt for your Directus API URL, token, Directus collection name, and Bridgetown collection name
-   - Generate a minimal `config/initializers/bridgetown_directus.rb`
+   - Generate a minimal `config/initializers.rb`
    - All further customization is done in Ruby, not YAML
 
 ### Manual Installation
@@ -38,7 +38,7 @@ Before installing the plugin, make sure you have an [Auth Token](https://docs.di
    ```
 
 2. Run `bundle install` to install the gem.
-3. Create `config/initializers/bridgetown_directus.rb` (see below for configuration).
+3. Create `config/initializers.rb` (see below for configuration).
 
 ## Configuration
 
@@ -106,7 +106,7 @@ See the plugin source and inline documentation for advanced features such as:
 
 ### Migrating from 0.1.x
 
-- **YAML config is no longer used.** All configuration is now in Ruby in `config/initializers/bridgetown_directus.rb`.
+- **YAML config is no longer used.** All configuration is now in Ruby in `config/initializers.rb`.
 - Field mapping, transformation, and translations are handled in the initializer.
 - All Directus fields are output by default; use `c.field` for customization.
 - **Upgrading?** The `resource_type` option is no longer required. Use the Bridgetown collection name and layout instead. See the [CHANGELOG](CHANGELOG.md) for details.
