@@ -9,6 +9,8 @@ module BridgetownDirectus
       return if site.ssr?
 
       config.collections.each_value do |collection_config|
+        next unless [:posts, :pages, :custom_collection].include?(collection_config.resource_type)
+
         process_collection(
           client: Client.new(
             api_url: config.api_url,
@@ -21,15 +23,15 @@ module BridgetownDirectus
 
     private
 
-    # Determine the output directory for the given resource type
-    def collection_directory(resource_type)
-      case resource_type.to_s
+    # Determine the output directory for the given collection name
+    def collection_directory(collection_name)
+      case collection_name.to_s
       when "posts"
         File.join(site.source, "_posts")
       when "pages"
         File.join(site.source, "_pages")
       else
-        File.join(site.source, "_#{resource_type}")
+        File.join(site.source, "_#{collection_name}")
       end
     end
 
@@ -40,6 +42,7 @@ module BridgetownDirectus
       slug = item["slug"] || item["id"].to_s
       filename = build_filename(collection_dir, slug)
       item = transform_item_fields(item, api_url, layout)
+      item["directus_generated"] = true # Add flag to front matter
       content = item.delete("body") || ""
       front_matter = generate_front_matter(item)
       write_markdown_file(filename, front_matter, content)
@@ -67,11 +70,14 @@ module BridgetownDirectus
       File.write(filename, "---\n#{front_matter}---\n\n#{content}")
     end
 
-    # Remove all Markdown files in the target directory before writing new ones
+    # Remove only plugin-generated Markdown files in the target directory before writing new ones
     def clean_collection_directory(collection_dir)
-      require "fileutils"
+      require "yaml"
       Dir.glob(File.join(collection_dir, "*.md")).each do |file|
-        FileUtils.rm_f(file)
+        fm = File.read(file)[%r{\A---.*?---}m]
+        File.delete(file) if fm && YAML.safe_load(fm)["directus_generated"]
+      rescue StandardError => e
+        warn "[BridgetownDirectus] Could not check/delete #{file}: #{e.message}"
       end
     end
 
@@ -83,11 +89,46 @@ module BridgetownDirectus
         warn "Error fetching collection '#{endpoint}': #{e.message}"
         return
       end
-      collection_dir = collection_directory(collection_config.resource_type)
+      collection_dir = collection_directory(collection_config.name)
       clean_collection_directory(collection_dir)
       api_url = site.config.bridgetown_directus.api_url
-      response.each do |item|
+      sanitized_response = sanitize_keys(response)
+      sanitized_response.each do |item|
         write_directus_file(item, collection_dir, collection_config.layout, api_url)
+      end
+    end
+
+    # Recursively sanitize keys to avoid illegal instance variable names (Ruby 3.4+)
+    def sanitize_keys(obj)
+      case obj
+      when Hash
+        obj.each_with_object({}) do |(k, v), h|
+          safe_key = if %r{^\d}.match?(k.to_s)
+                       "n_#{k}"
+                     else
+                       k
+                     end
+          h[safe_key] = sanitize_keys(v)
+        end
+      when Array
+        obj.map { |v| sanitize_keys(v) }
+      else
+        obj
+      end
+    end
+
+    # Recursively log all keys to find problematic ones
+    def log_all_keys(obj, path = "")
+      case obj
+      when Hash
+        obj.each do |k, v|
+          # puts "[BridgetownDirectus DEBUG] Key at #{path}: #{k.inspect}" if %r{^\d}.match?(k.to_s)
+          log_all_keys(v, "#{path}/#{k}")
+        end
+      when Array
+        obj.each_with_index do |v, idx|
+          log_all_keys(v, "#{path}[#{idx}]")
+        end
       end
     end
   end
