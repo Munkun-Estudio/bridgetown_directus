@@ -1,103 +1,135 @@
+# frozen_string_literal: true
+
+require "yaml"
+
 module BridgetownDirectus
   class Builder < Bridgetown::Builder
     def build
+      config = site.config.bridgetown_directus
       return if site.ssr?
 
-      Utils.log_directus "Connecting to Directus API..."
-      posts_data = fetch_posts
+      config.collections.each_value do |collection_config|
+        next unless [:posts, :pages, :custom_collection].include?(collection_config.resource_type)
 
-      Utils.log_directus "Fetched #{posts_data.size} posts from Directus."
-
-      create_documents(posts_data)
+        process_collection(
+          client: Client.new(
+            api_url: config.api_url,
+            token: config.token
+          ),
+          collection_config: collection_config
+        )
+      end
     end
 
     private
 
-    def fetch_posts
-      api_client = BridgetownDirectus::APIClient.new(site)
-      api_client.fetch_posts
-    end
-
-    def create_documents(posts_data)
-      # Ensure posts_data contains a "data" key and it is an array
-      if posts_data.is_a?(Hash) && posts_data.key?("data") && posts_data["data"].is_a?(Array)
-        posts_array = posts_data["data"]
-      elsif posts_data.is_a?(Array)
-        posts_array = posts_data
+    # Determine the output directory for the given collection name
+    def collection_directory(collection_name)
+      case collection_name.to_s
+      when "posts"
+        File.join(site.source, "_posts")
+      when "pages"
+        File.join(site.source, "_pages")
       else
-        raise "Unexpected structure of posts_data: #{posts_data.inspect}"
+        File.join(site.source, "_#{collection_name}")
       end
-
-      created_posts = 0
-      posts_array.each do |post|
-        if translations_enabled?
-          created_posts += create_translated_posts(post)
-        else
-          created_posts += create_single_post(post)
-        end
-      end
-
-      Utils.log_directus "Finished generating #{created_posts} posts."
     end
 
-    def translations_enabled?
-      site.config.dig("directus", "translations", "enabled") == true
+    # Write a Directus item as a Markdown file in the correct Bridgetown collection directory
+    def write_directus_file(item, collection_dir, layout = nil, api_url = nil)
+      require "fileutils"
+      FileUtils.mkdir_p(collection_dir)
+      slug = item["slug"] || item["id"].to_s
+      filename = build_filename(collection_dir, slug)
+      item = transform_item_fields(item, api_url, layout)
+      item["directus_generated"] = true # Add flag to front matter
+      content = item.delete("body") || ""
+      front_matter = generate_front_matter(item)
+      write_markdown_file(filename, front_matter, content)
     end
 
-    def create_single_post(post)
-      slug = post["slug"] || Bridgetown::Utils.slugify(post["title"])
-      api_url = site.config.dig("directus", "api_url")
+    def build_filename(collection_dir, slug)
+      File.join(collection_dir, "#{slug}.md")
+    end
 
+    def transform_item_fields(item, api_url, layout)
+      item = item.dup
+      if item["image"] && api_url && !item["image"].to_s.start_with?("http://", "https://")
+        item["image"] = File.join(api_url, "assets", item["image"])
+      end
+      item["layout"] = layout if layout
+      item
+    end
+
+    def generate_front_matter(item)
+      yaml = item.to_yaml
+      yaml.sub(%r{^---\s*\n}, "") # Remove leading --- if present
+    end
+
+    def write_markdown_file(filename, front_matter, content)
+      File.write(filename, "---\n#{front_matter}---\n\n#{content}")
+    end
+
+    # Remove only plugin-generated Markdown files in the target directory before writing new ones
+    def clean_collection_directory(collection_dir)
+      require "yaml"
+      Dir.glob(File.join(collection_dir, "*.md")).each do |file|
+        fm = File.read(file)[%r{\A---.*?---}m]
+        File.delete(file) if fm && YAML.safe_load(fm)["directus_generated"]
+      rescue StandardError => e
+        warn "[BridgetownDirectus] Could not check/delete #{file}: #{e.message}"
+      end
+    end
+
+    def process_collection(client:, collection_config:)
+      endpoint = collection_config.endpoint || collection_config.name.to_s
       begin
-        add_resource :posts, "#{slug}.md" do
-          layout "post"
-          title post["title"]
-          content post["body"]
-          date post["date"] || Time.now.iso8601
-          category post["category"]
-          excerpt post["excerpt"]
-          image post["image"] ? "#{api_url}/assets/#{post['image']}" : nil
-        end
-        1
-      rescue => e
-        Utils.log_directus "Error creating post #{slug}: #{e.message}"
-        0
+        response = client.fetch_collection(endpoint, collection_config.default_query)
+      rescue StandardError => e
+        warn "Error fetching collection '#{endpoint}': #{e.message}"
+        return
+      end
+      collection_dir = collection_directory(collection_config.name)
+      clean_collection_directory(collection_dir)
+      api_url = site.config.bridgetown_directus.api_url
+      sanitized_response = sanitize_keys(response)
+      sanitized_response.each do |item|
+        write_directus_file(item, collection_dir, collection_config.layout, api_url)
       end
     end
 
-    def create_translated_posts(post)
-      posts_created = 0
-      translations = post["translations"] || []
+    # Recursively sanitize keys to avoid illegal instance variable names (Ruby 3.4+)
+    def sanitize_keys(obj)
+      case obj
+      when Hash
+        obj.each_with_object({}) do |(k, v), h|
+          safe_key = if %r{^\d}.match?(k.to_s)
+                       "n_#{k}"
+                     else
+                       k
+                     end
+          h[safe_key] = sanitize_keys(v)
+        end
+      when Array
+        obj.map { |v| sanitize_keys(v) }
+      else
+        obj
+      end
+    end
 
-      translations.each do |translation|
-        lang_code = translation["languages_code"].split("-").first.downcase
-        bridgetown_locale = lang_code.to_sym
-        
-        next unless site.config["available_locales"].include?(bridgetown_locale)
-
-        slug = translation["slug"] || Bridgetown::Utils.slugify(translation["title"])
-        api_url = site.config.dig("directus", "api_url")
-
-        begin
-          add_resource :posts, "#{slug}.md" do
-            layout "post"
-            title translation["title"]
-            content translation["body"]
-            date post["date"] || Time.now.iso8601
-            category post["category"]
-            excerpt translation["excerpt"]
-            image post["image"] ? "#{api_url}/assets/#{post['image']}" : nil
-            locale bridgetown_locale
-            translations translations
-          end
-
-          posts_created += 1
-        rescue => e
-          Utils.log_directus "Error creating post #{slug} for locale #{bridgetown_locale}: #{e.message}"
+    # Recursively log all keys to find problematic ones
+    def log_all_keys(obj, path = "")
+      case obj
+      when Hash
+        obj.each do |k, v|
+          # puts "[BridgetownDirectus DEBUG] Key at #{path}: #{k.inspect}" if %r{^\d}.match?(k.to_s)
+          log_all_keys(v, "#{path}/#{k}")
+        end
+      when Array
+        obj.each_with_index do |v, idx|
+          log_all_keys(v, "#{path}[#{idx}]")
         end
       end
-
-      posts_created
     end
   end
 end

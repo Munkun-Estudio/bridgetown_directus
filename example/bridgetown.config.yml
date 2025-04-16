@@ -1,0 +1,24 @@
+# Example Bridgetown configuration file for the enhanced Directus plugin
+
+# Site settings
+title: My Bridgetown Site with Directus
+email: your-email@example.com
+description: >-
+  A Bridgetown site powered by Directus headless CMS
+baseurl: ""
+url: ""
+
+# Collections
+collections:
+  posts:
+    output: true
+    permalink: /blog/:slug/
+    source: _posts
+    future: true
+  staff_members:
+    output: true
+    permalink: /staff_members/:slug/
+    source: _staff_members
+    sort_field: 'created_at'
+    sort_reverse: false
+

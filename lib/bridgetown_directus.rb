@@ -2,36 +2,38 @@
 
 require "bridgetown"
 require_relative "bridgetown_directus/utils"
-require_relative "bridgetown_directus/api_client"
+require_relative "bridgetown_directus/client"
+require_relative "bridgetown_directus/data_mapper"
+require_relative "bridgetown_directus/configuration"
 require_relative "bridgetown_directus/builder"
 
 module BridgetownDirectus
   # Bridgetown initializer for the plugin
-  Bridgetown.initializer :bridgetown_directus do |config, api_url:, token:, collection:, mappings:|
-    config.bridgetown_directus ||= {}
-    config.bridgetown_directus.api_url ||= api_url || ENV.fetch("DIRECTUS_API_URL")
-    config.bridgetown_directus.token ||= token || ENV.fetch("DIRECTUS_API_TOKEN")
+  Bridgetown.initializer :bridgetown_directus do |config|
+    # Only assign config.bridgetown_directus if not already set
+    config.bridgetown_directus ||= Configuration.new
 
-    # Access collection and mappings from the bridgetown.config.yml
-    config.bridgetown_directus.collection ||= config.directus.collection
-    config.bridgetown_directus.mappings ||= config.directus.mappings
-    config.bridgetown_directus.translations ||= config.directus["translations"]
+    # Set up configuration directly (leave to user initializer if possible)
+    config.bridgetown_directus.api_url ||= ENV["DIRECTUS_API_URL"] || "[https://studio.munkun.com](https://studio.munkun.com)"
+    config.bridgetown_directus.token ||= ENV["DIRECTUS_TOKEN"] || "t1P6YstcUslmf-KJFbc6Kyg0bomMxkXY"
 
     # Register the builder
     config.builder BridgetownDirectus::Builder
+  end
 
-    # Log translations status
-    if config.bridgetown_directus.translations["enabled"]
-      translatable_fields = config.bridgetown_directus.translations["fields"] || []
-      Bridgetown.logger.info "Directus translations enabled for fields: #{translatable_fields.join(', ')}"
-    else
-      Bridgetown.logger.info "Directus translations are disabled"
+  class Configuration
+    attr_accessor :api_url, :token
+    attr_reader :collections
+
+    def initialize
+      @collections = {}
     end
 
-    # Validate Directus config before proceeding
-    unless config.bridgetown_directus.api_url && config.bridgetown_directus.token
-      Bridgetown.logger.error "Invalid Directus configuration detected. Please check your API URL and token."
-      raise "Directus configuration invalid"
+    def register_collection(name, &block)
+      collection = CollectionConfig.new(name)
+      collection.instance_eval(&block) if block_given?
+      @collections[name] = collection
+      collection
     end
   end
 end
