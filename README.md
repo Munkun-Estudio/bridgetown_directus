@@ -50,9 +50,9 @@ init :bridgetown_directus do |directus|
   directus.api_url = ENV["DIRECTUS_API_URL"] || "https://your-directus-instance.com"
   directus.token = ENV["DIRECTUS_API_TOKEN"] || "your-token"
 
-  directus.register_collection(:materials) do |c|
-    c.endpoint = "imasus_materials"
-    c.layout = "material" # Use the singular layout for individual pages
+  directus.register_collection(:posts) do |c|
+    c.endpoint = "posts"
+    c.layout = "post" # Use the singular layout for individual pages
     # Minimal mapping (optional):
     c.field :id, "id"
     c.field :title, "title"
@@ -91,7 +91,7 @@ c.enable_translations([:title, :content])
 
 ### File Generation & Cleanup
 
-- **Generated files**: The plugin writes Markdown files to `src/_[bridgetown_collection]/` (e.g., `src/_materials/`).
+- **Generated files**: The plugin writes Markdown files to `src/_[bridgetown_collection]/` (e.g., `src/_staff_members/`).
 - **Safety**: Only files with the `directus_generated: true` flag in their front matter are deleted during cleanup. User-authored files are never removed.
 
 ### Advanced Configuration

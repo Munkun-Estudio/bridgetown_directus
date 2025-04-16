@@ -13,10 +13,10 @@ init :bridgetown_directus do |directus|
   directus.api_url = ENV["DIRECTUS_API_URL"] || "https://your-directus-instance.com"
   directus.token = ENV["DIRECTUS_API_TOKEN"] || "your-token-here"
 
-  # Example custom collection: materials
-  directus.register_collection(:materials) do |c|
-    c.endpoint = "imasus_materials"
-    c.layout = "material"
+  # Example custom collection: staff_members
+  directus.register_collection(:staff_members) do |c|
+    c.endpoint = "staff_members"
+    c.layout = "staff_member"
     c.field :id, "id"
     c.field :title, "title"
     # To enable translations, uncomment and edit:
@@ -25,10 +25,10 @@ init :bridgetown_directus do |directus|
   end
 
   # Example for posts (if needed)
-  # directus.register_collection(:posts) do |c|
-  #   c.endpoint = "articles"
-  #   c.layout = "post"
-  #   c.field :title, "title"
-  #   c.field :content, "body"
-  # end
+  directus.register_collection(:posts) do |c|
+    c.endpoint = "articles"
+    c.layout = "post"
+    c.field :title, "title"
+    c.field :content, "body"
+  end
 end

@@ -8,7 +8,17 @@ description: >-
 baseurl: ""
 url: ""
 
-# Available locales for the site
-available_locales: [en, es, fr]
-default_locale: en
+# Collections
+collections:
+  posts:
+    output: true
+    permalink: /blog/:slug/
+    source: _posts
+    future: true
+  staff_members:
+    output: true
+    permalink: /staff_members/:slug/
+    source: _staff_members
+    sort_field: 'created_at'
+    sort_reverse: false
 

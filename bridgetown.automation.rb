@@ -3,8 +3,8 @@ say_status :directus, "Installing the bridgetown_directus plugin..."
 # Prompt the user for Directus API URL and Auth Token
 api_url = ask("What's your Directus instance URL? (Example: https://your-instance.example.com)")
 auth_token = ask("What's your Directus API auth token? (Leave blank to use ENV['DIRECTUS_API_TOKEN'])")
-directus_collection = ask("What's the Directus collection name (API endpoint/model)? (Example: imasus_materials)")
-bridgetown_collection = ask("What's the Bridgetown collection name (used for folder and resource)? (Example: materials)")
+directus_collection = ask("What's the Directus collection name (API endpoint/model)? (Example: posts)")
+bridgetown_collection = ask("What's the Bridgetown collection name (used for folder and resource)? (Example: posts)")
 
 # Add the bridgetown_directus gem
 add_gem "bridgetown_directus"
