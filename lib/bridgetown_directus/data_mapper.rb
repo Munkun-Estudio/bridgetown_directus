@@ -113,7 +113,15 @@ module BridgetownDirectus
           # Get the Directus field name for this Bridgetown field
           field_config = collection_config.fields[field]
 
-          directus_field = field_config.is_a?(Hash) ? field_config[:directus_field] : field_config.to_s
+          directus_field = if field_config.nil?
+                             field.to_s
+                           elsif field_config.is_a?(Hash)
+                             field_config[:directus_field]
+                           else
+                             field_config.to_s
+                           end
+
+          directus_field = field.to_s if directus_field.to_s.empty?
 
           # Check if the translation has this field
           next unless translation[directus_field]

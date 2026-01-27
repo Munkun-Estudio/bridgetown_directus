@@ -14,8 +14,8 @@ module BridgetownDirectus
     config.bridgetown_directus ||= Configuration.new
 
     # Set up configuration directly (leave to user initializer if possible)
-    config.bridgetown_directus.api_url ||= ENV["DIRECTUS_API_URL"] || "[https://studio.munkun.com](https://studio.munkun.com)"
-    config.bridgetown_directus.token ||= ENV["DIRECTUS_TOKEN"] || "t1P6YstcUslmf-KJFbc6Kyg0bomMxkXY"
+    config.bridgetown_directus.api_url ||= ENV["DIRECTUS_API_URL"]
+    config.bridgetown_directus.token ||= ENV["DIRECTUS_API_TOKEN"] || ENV["DIRECTUS_TOKEN"]
 
     # Register the builder
     config.builder BridgetownDirectus::Builder

@@ -66,9 +66,18 @@ For custom collections, create a layout file at `src/_layouts/[singular].erb` (e
 
 **By default, all Directus fields will be written to the front matter of generated Markdown files.**
 You only need to declare fields with `c.field` if you want to:
+
 - Rename a field in the output
 - Transform/convert a field value (e.g., format a date, generate a slug, etc.)
 - Set a default value if a field is missing
+
+Mapped fields are merged into the full Directus payload, so you still retain access to original fields unless you override them.
+
+### Environment Variables
+
+- `DIRECTUS_API_URL` (required unless you set `directus.api_url` in config)
+- `DIRECTUS_API_TOKEN` (required unless you set `directus.token` in config)
+- `DIRECTUS_TOKEN` (legacy fallback; supported for backward compatibility)
 
 #### Example: Customizing a Field
 
@@ -93,10 +102,16 @@ c.enable_translations([:title, :content])
 
 - **Generated files**: The plugin writes Markdown files to `src/_[bridgetown_collection]/` (e.g., `src/_staff_members/`).
 - **Safety**: Only files with the `directus_generated: true` flag in their front matter are deleted during cleanup. User-authored files are never removed.
+- **Posts**: If `date` or `published_at` is present, filenames are generated as `YYYY-MM-DD-slug.md` to preserve date-based permalinks.
+
+### Debug Logging
+
+Set `BRIDGETOWN_DIRECTUS_LOG=1` to print per-collection activity logs during builds.
 
 ### Advanced Configuration
 
 See the plugin source and inline documentation for advanced features such as:
+
 - Multiple collections
 - Custom layouts per collection
 - Filtering, sorting, and pagination via `c.default_query` (**experimental**; not fully tested in production—see notes below)

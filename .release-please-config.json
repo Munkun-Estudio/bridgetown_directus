@@ -1,0 +1,10 @@
+{
+  "packages": {
+    ".": {
+      "release-type": "ruby",
+      "package-name": "bridgetown_directus",
+      "changelog-path": "CHANGELOG.md",
+      "include-v-in-tag": true
+    }
+  }
+}

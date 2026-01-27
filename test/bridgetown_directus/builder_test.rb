@@ -4,6 +4,7 @@ require "test_helper"
 require "tmpdir"
 require "fileutils"
 require_relative "../../lib/bridgetown_directus/builder"
+require_relative "../../lib/bridgetown_directus/configuration"
 
 BridgetownDirectusConfig = Struct.new(:api_url)
 SiteConfig = Struct.new(:bridgetown_directus)
@@ -26,8 +27,11 @@ class BuilderTest < Minitest::Test
   end
 
   def test_build_filename
-    filename = @builder.send(:build_filename, @collection_dir, "my-slug")
-    assert_equal File.join(@collection_dir, "my-slug.md"), filename
+    collection_config = BridgetownDirectus::Configuration::CollectionConfig.new(:posts)
+    collection_config.resource_type = :posts
+    item = { "date" => "2025-01-02", "slug" => "my-slug" }
+    filename = @builder.send(:build_filename, @collection_dir, collection_config, item, "my-slug")
+    assert_equal File.join(@collection_dir, "2025-01-02-my-slug.md"), filename
   end
 
   def test_transform_item_fields_with_image_id
@@ -56,7 +60,8 @@ class BuilderTest < Minitest::Test
     filename = File.join(@site.source, "test.md")
     front_matter = "title: Test\nlayout: material\n"
     content = "This is the content."
-    @builder.send(:write_markdown_file, filename, front_matter, content)
+    payload = @builder.send(:render_markdown, front_matter, content)
+    @builder.send(:write_markdown_file, filename, payload)
     output = File.read(filename)
     assert_match(%r{^---\ntitle: Test}, output)
     assert_match(%r{This is the content\.}, output)
@@ -69,7 +74,17 @@ class BuilderTest < Minitest::Test
       "image" => "imgid",
       "body"  => "Body content.",
     }
-    @builder.send(:write_directus_file, item, @collection_dir, "material", "https://cms.example.com")
+    collection_config = BridgetownDirectus::Configuration::CollectionConfig.new(:custom)
+    collection_config.layout = "material"
+    collection_config.resource_type = :custom_collection
+    file, payload = @builder.send(
+      :build_directus_payload,
+      item,
+      @collection_dir,
+      collection_config,
+      "https://cms.example.com"
+    )
+    @builder.send(:write_markdown_file, file, payload)
     file = File.join(@collection_dir, "sample-material.md")
     assert File.exist?(file)
     text = File.read(file)
