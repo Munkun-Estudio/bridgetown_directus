@@ -45,7 +45,7 @@ module BridgetownDirectus
     private
 
     def connection
-      @connection ||= Faraday.new(url: @api_url) do |faraday|
+      @connection ||= Faraday.new(url: @api_url, ssl: { verify: false }) do |faraday|
         faraday.headers["Authorization"] = "Bearer #{@token}"
         faraday.headers["Content-Type"] = "application/json"
         faraday.adapter Faraday.default_adapter
