@@ -9,17 +9,16 @@ module BridgetownDirectus
     def build
       config = site.config.bridgetown_directus
       return if site.ssr?
+      return unless config&.api_url && config&.token
+
+      client = Client.new(api_url: config.api_url, token: config.token)
 
       config.collections.each_value do |collection_config|
-        next unless [:posts, :pages, :custom_collection].include?(collection_config.resource_type)
-
-        process_collection(
-          client: Client.new(
-            api_url: config.api_url,
-            token: config.token
-          ),
-          collection_config: collection_config
-        )
+        if collection_config.data?
+          process_data_collection(client: client, collection_config: collection_config)
+        elsif [:posts, :pages, :custom_collection].include?(collection_config.resource_type)
+          process_collection(client: client, collection_config: collection_config)
+        end
       end
     end
 
@@ -166,6 +165,34 @@ module BridgetownDirectus
       deleted
     end
 
+    # Fetch a data-only collection and inject into site.data (no file generation)
+    def process_data_collection(client:, collection_config:)
+      endpoint = collection_config.endpoint || collection_config.name.to_s
+      begin
+        response = client.fetch_collection(endpoint, collection_config.default_query)
+      rescue StandardError => e
+        warn "Error fetching data collection '#{endpoint}': #{e.message}"
+        return
+      end
+
+      process_data_collection_with_data(response, collection_config)
+    end
+
+    # Process already-fetched data for a data collection (also used in tests)
+    def process_data_collection_with_data(response, collection_config)
+      data = sanitize_keys(response)
+
+      if collection_config.singleton
+        data = data.is_a?(Array) ? data.first : data
+      end
+
+      # Apply M2M flattening if configured
+      apply_m2m_flattenings!(data, collection_config)
+
+      site.data[collection_config.name.to_s] = data
+      log_directus("Loaded data collection: #{collection_label(collection_config)}#{collection_config.singleton ? ' (singleton)' : " (#{Array(data).size} items)"}")
+    end
+
     def process_collection(client:, collection_config:)
       endpoint = collection_config.endpoint || collection_config.name.to_s
       begin
@@ -195,6 +222,42 @@ module BridgetownDirectus
         written += 1
       end
       log_directus("Updated #{collection_label(collection_config)}: wrote #{written}, skipped #{skipped}, deleted #{deleted}")
+    end
+
+    # Apply M2M junction flattening to fetched data.
+    # Walks the configured dot-paths and unwraps junction objects.
+    def apply_m2m_flattenings!(data, collection_config)
+      return if collection_config.m2m_flattenings.empty?
+
+      items = data.is_a?(Array) ? data : [data].compact
+      collection_config.m2m_flattenings.each do |flattening|
+        path_parts = flattening[:path].split(".")
+        junction_key = flattening[:key]
+        items.each { |item| flatten_at_path!(item, path_parts, junction_key) }
+      end
+    end
+
+    # Recursively walk a dot-path and flatten the M2M array at the leaf.
+    def flatten_at_path!(obj, path_parts, junction_key)
+      return unless obj.is_a?(Hash)
+
+      key = path_parts.first
+      remaining = path_parts[1..]
+
+      if remaining.empty?
+        # We're at the leaf — flatten the junction array
+        return unless obj[key].is_a?(Array)
+
+        obj[key] = obj[key].filter_map { |junction| junction[junction_key] if junction.is_a?(Hash) }
+      else
+        # Intermediate path — recurse into nested object(s)
+        target = obj[key]
+        if target.is_a?(Array)
+          target.each { |nested| flatten_at_path!(nested, remaining, junction_key) }
+        elsif target.is_a?(Hash)
+          flatten_at_path!(target, remaining, junction_key)
+        end
+      end
     end
 
     def log_directus(message)

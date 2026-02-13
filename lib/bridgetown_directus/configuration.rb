@@ -43,11 +43,33 @@ module BridgetownDirectus
         @translations_enabled = false
         @translatable_fields = []
         @endpoint = nil
+        @singleton = false
+        @m2m_flattenings = []
       end
 
       # Set up accessors for collection configuration properties
       attr_accessor :endpoint, :fields, :default_query, :resource_type, :layout,
-                    :translations_enabled, :translatable_fields
+                    :translations_enabled, :translatable_fields, :singleton
+      attr_reader :m2m_flattenings
+
+      # Register a many-to-many junction to flatten after fetching.
+      # Directus returns M2M data wrapped in junction objects like:
+      #   [{"raus_stats_id": {"id": 1, "value": "8+"}}]
+      # This unwraps them to:
+      #   [{"id": 1, "value": "8+"}]
+      #
+      # @param path [String] Dot-separated path to the M2M field (e.g. "sections.stats")
+      # @param key [String] The junction key containing the actual related item
+      # @return [void]
+      def flatten_m2m(path, key:)
+        @m2m_flattenings << { path: path, key: key }
+      end
+
+      # Check if this collection is a data-only collection
+      # @return [Boolean]
+      def data?
+        @resource_type == :data
+      end
 
       # Define a field mapping with optional converter
       # @param bridgetown_field [Symbol] The field name in Bridgetown
