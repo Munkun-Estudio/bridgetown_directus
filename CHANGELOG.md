@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1](https://github.com/Munkun-Estudio/bridgetown_directus/compare/bridgetown_directus/v0.4.0...bridgetown_directus/v0.4.1) (2026-02-16)
+
+
+### Bug Fixes
+
+* match release-please tag format in release workflow ([70bd081](https://github.com/Munkun-Estudio/bridgetown_directus/commit/70bd08125477acb33f10e06de5fd41ba889d472a))
+
 ## [0.4.0](https://github.com/Munkun-Estudio/bridgetown_directus/compare/bridgetown_directus/v0.3.0...bridgetown_directus/v0.4.0) (2026-02-16)
 
 
