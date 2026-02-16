@@ -6,7 +6,17 @@ require "yaml"
 
 module BridgetownDirectus
   class Builder < Bridgetown::Builder
+    # Hook into post_read so site.data is already populated by the Reader.
+    # The build method runs during setup (before read), so writing to site.data
+    # there would be overwritten when Reader#read assigns site.data from _data/ files.
     def build
+      hook :site, :post_read do |site|
+        @site = site
+        fetch_all_collections
+      end
+    end
+
+    def fetch_all_collections
       config = site.config.bridgetown_directus
       return if site.ssr?
       return unless config&.api_url && config&.token
