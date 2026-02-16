@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - "v*"
+      - "bridgetown_directus/v*"
   workflow_dispatch:
 
 permissions:
