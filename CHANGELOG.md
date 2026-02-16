@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2](https://github.com/Munkun-Estudio/bridgetown_directus/compare/bridgetown_directus/v0.4.1...bridgetown_directus/v0.4.2) (2026-02-16)
+
+
+### Bug Fixes
+
+* use OIDC credentials with gem push instead of rake release ([063adf1](https://github.com/Munkun-Estudio/bridgetown_directus/commit/063adf1b33d798da31467f9ae7790962ed41ef30))
+
 ## [0.4.1](https://github.com/Munkun-Estudio/bridgetown_directus/compare/bridgetown_directus/v0.4.0...bridgetown_directus/v0.4.1) (2026-02-16)
 
 
