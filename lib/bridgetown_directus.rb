@@ -39,11 +39,12 @@ module BridgetownDirectus
 
   # Global configuration singleton. Call BridgetownDirectus.configure to register collections.
   class Configuration
-    attr_accessor :api_url, :token
+    attr_accessor :api_url, :token, :ssl_verify
     attr_reader :collections
 
     def initialize
       @collections = {}
+      @ssl_verify = true
     end
 
     # Returns the singleton Configuration instance

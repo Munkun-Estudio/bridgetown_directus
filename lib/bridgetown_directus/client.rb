@@ -8,9 +8,10 @@ module BridgetownDirectus
   class Client
     attr_reader :api_url, :token
 
-    def initialize(api_url:, token:)
+    def initialize(api_url:, token:, ssl_verify: true)
       @api_url = api_url
       @token = token
+      @ssl_verify = ssl_verify
       return unless @token.nil? || @api_url.nil?
 
       raise StandardError, "Invalid Directus configuration: missing API token or URL"
@@ -45,7 +46,7 @@ module BridgetownDirectus
     private
 
     def connection
-      @connection ||= Faraday.new(url: @api_url, ssl: { verify: false }) do |faraday|
+      @connection ||= Faraday.new(url: @api_url, ssl: { verify: @ssl_verify }) do |faraday|
         faraday.headers["Authorization"] = "Bearer #{@token}"
         faraday.headers["Content-Type"] = "application/json"
         faraday.adapter Faraday.default_adapter

@@ -11,7 +11,7 @@ module BridgetownDirectus
       return if site.ssr?
       return unless config&.api_url && config&.token
 
-      client = Client.new(api_url: config.api_url, token: config.token)
+      client = Client.new(api_url: config.api_url, token: config.token, ssl_verify: config.ssl_verify)
 
       config.collections.each_value do |collection_config|
         if collection_config.data?
