@@ -2,132 +2,223 @@
 
 [![Gem Version](https://badge.fury.io/rb/bridgetown_directus.svg)](https://badge.fury.io/rb/bridgetown_directus)
 
-This Bridgetown plugin integrates with [Directus](https://directus.io/), a flexible headless CMS. The plugin allows Bridgetown to pull content from a Directus API during the build process and generate static content in your site. It supports both single-language and multilingual content through Directus translations.
+A [Bridgetown](https://www.bridgetownrb.com/) plugin that syncs content from [Directus](https://directus.io/) at build time. It fetches collections from the Directus API and either generates static Markdown files or injects data directly into `site.data`.
 
 ## Features
 
-- Fetch content from **multiple Directus collections** during the build process
-- Support for **flexible field mapping** and custom converters
-- Support for **multilingual content** via Directus translations
-- **Experimental**: Advanced **filtering, sorting, and pagination** options
-- Simple configuration for any Bridgetown collection (posts, pages, or custom types)
+- **Output collections** — fetch Directus items and generate Markdown files (posts, pages, custom types)
+- **Data collections** — fetch Directus items and inject into `site.data` (no file generation)
+- **Singletons** — single-object collections (e.g. site settings)
+- **M2M junction flattening** — unwrap Directus many-to-many junction objects automatically
+- **Flexible field mapping** with custom converters
+- **Multilingual content** via Directus translations
+- **Configurable SSL verification** for environments with strict OpenSSL
+- **Graceful skip** — build succeeds even without Directus credentials configured
 
 ## Installation
 
-Before installing the plugin, make sure you have an [Auth Token](https://docs.directus.io/reference/authentication.html#access-tokens) in your Directus instance.
+### Recommended (Bridgetown Automation)
 
-### Recommended Installation (Bridgetown Automation)
+```bash
+bin/bridgetown apply https://github.com/munkun-estudio/bridgetown_directus
+```
 
-1. Run the plugin's automation setup:
+### Manual
 
-   ```bash
-   bin/bridgetown apply https://github.com/munkun-estudio/bridgetown_directus
-   ```
+```ruby
+bundle add "bridgetown_directus"
+```
 
-   This will:
-   - Prompt for your Directus API URL, token, Directus collection name, and Bridgetown collection name
-   - Generate a minimal `config/initializers.rb`
-   - All further customization is done in Ruby, not YAML
-
-### Manual Installation
-
-1. Add the gem to your Gemfile:
-
-   ```ruby
-   bundle add "bridgetown_directus"
-   ```
-
-2. Run `bundle install` to install the gem.
-3. Create `config/initializers.rb` (see below for configuration).
+```bash
+bundle install
+```
 
 ## Configuration
 
-### Minimal Example
+### Basic Setup
 
 ```ruby
-# config/initializers/bridgetown_directus.rb
-init :bridgetown_directus do |directus|
-  directus.api_url = ENV["DIRECTUS_API_URL"] || "https://your-directus-instance.com"
-  directus.token = ENV["DIRECTUS_API_TOKEN"] || "your-token"
+# config/initializers.rb
+init :bridgetown_directus
+
+BridgetownDirectus.configure do |directus|
+  directus.api_url = ENV["DIRECTUS_API_URL"]
+  directus.token   = ENV["DIRECTUS_API_TOKEN"]
 
   directus.register_collection(:posts) do |c|
-    c.endpoint = "posts"
-    c.layout = "post" # Use the singular layout for individual pages
-    # Minimal mapping (optional):
-    c.field :id, "id"
-    c.field :title, "title"
-    # To enable translations, uncomment and edit:
-    # c.enable_translations([:title, :content])
+    c.endpoint = "blog_posts"
+    c.layout   = "post"
   end
 end
 ```
 
-For custom collections, create a layout file at `src/_layouts/[singular].erb` (e.g., `staff_member.erb`) to control the page rendering.
+The plugin reads `DIRECTUS_API_URL` and `DIRECTUS_API_TOKEN` from the environment by default. If neither is set, the build skips Directus sync gracefully.
 
-**By default, all Directus fields will be written to the front matter of generated Markdown files.**
-You only need to declare fields with `c.field` if you want to:
+### Data Collections
 
-- Rename a field in the output
-- Transform/convert a field value (e.g., format a date, generate a slug, etc.)
-- Set a default value if a field is missing
+Data collections populate `site.data` without generating files. Useful for navigation, settings, or any shared data.
 
-Mapped fields are merged into the full Directus payload, so you still retain access to original fields unless you override them.
+```ruby
+directus.register_collection(:navigation) do |c|
+  c.endpoint      = "navigation_items"
+  c.resource_type = :data
+  c.default_query = {
+    sort: "sort",
+    filter: { status: { _eq: "published" } }.to_json
+  }
+end
+```
 
-### Environment Variables
+Access in templates via `site.data.navigation`.
 
-- `DIRECTUS_API_URL` (required unless you set `directus.api_url` in config)
-- `DIRECTUS_API_TOKEN` (required unless you set `directus.token` in config)
-- `DIRECTUS_TOKEN` (legacy fallback; supported for backward compatibility)
+### Singletons
 
-#### Example: Customizing a Field
+For collections that contain a single record (e.g. site settings):
+
+```ruby
+directus.register_collection(:site_settings) do |c|
+  c.endpoint      = "site_settings"
+  c.resource_type = :data
+  c.singleton     = true
+end
+```
+
+Returns a single hash instead of an array. Access via `site.data.site_settings`.
+
+### Output Collections
+
+Generate Markdown files for posts, pages, or custom collection types:
+
+```ruby
+directus.register_collection(:events) do |c|
+  c.endpoint      = "events"
+  c.resource_type = :custom_collection
+  c.layout        = "event"
+  c.default_query = {
+    filter: { status: { _eq: "published" } }.to_json
+  }
+end
+```
+
+Generated files include `directus_generated: true` in front matter. Only these files are cleaned up on rebuild — user-authored files are never deleted.
+
+### M2M Junction Flattening
+
+Directus returns many-to-many relationships wrapped in junction objects:
+
+```json
+[{ "raus_stats_id": { "id": 1, "value": "8+" } }]
+```
+
+Use `flatten_m2m` to unwrap them:
+
+```ruby
+directus.register_collection(:pages) do |c|
+  c.endpoint      = "pages"
+  c.resource_type = :data
+  c.default_query = {
+    fields: "id,title,sections.stats.raus_stats_id.*"
+  }
+  c.flatten_m2m "sections.stats", key: "raus_stats_id"
+end
+```
+
+After flattening:
+
+```json
+[{ "id": 1, "value": "8+" }]
+```
+
+### Field Mapping
+
+All Directus fields are included in the output by default. Use `c.field` only when you need to rename or transform a value:
 
 ```ruby
 c.field :slug, "slug" do |value|
-  value || "staff_member-#{SecureRandom.hex(4)}"
+  value || "fallback-#{SecureRandom.hex(4)}"
 end
 ```
 
 ### Translations
 
-To enable translations for specific fields, add this inside your collection block:
-
 ```ruby
 c.enable_translations([:title, :content])
 ```
 
-- You can list any field that exists in your Directus collection, even if it's not declared above with `c.field`.
-- Only declare a field with `c.field` if you want to rename, transform, or set a default for it.
+### SSL Verification
 
-### File Generation & Cleanup
+If your local OpenSSL (3.6+) fails with CRL verification errors, you can disable SSL verification:
 
-- **Generated files**: The plugin writes Markdown files to `src/_[bridgetown_collection]/` (e.g., `src/_staff_members/`).
-- **Safety**: Only files with the `directus_generated: true` flag in their front matter are deleted during cleanup. User-authored files are never removed.
-- **Posts**: If `date` or `published_at` is present, filenames are generated as `YYYY-MM-DD-slug.md` to preserve date-based permalinks.
+```ruby
+directus.ssl_verify = false
+```
+
+This is a client-side issue with recent OpenSSL versions that enforce CRL checking but cannot auto-download CRLs during the TLS handshake. It typically only affects local development — CI/CD environments use standard OpenSSL builds without this issue.
+
+Default: `true`.
 
 ### Debug Logging
 
-Set `BRIDGETOWN_DIRECTUS_LOG=1` to print per-collection activity logs during builds.
+```bash
+BRIDGETOWN_DIRECTUS_LOG=1 bin/bt build
+```
 
-### Advanced Configuration
+### Environment Variables
 
-See the plugin source and inline documentation for advanced features such as:
+| Variable | Description |
+| -------- | ----------- |
+| `DIRECTUS_API_URL` | Directus instance URL |
+| `DIRECTUS_API_TOKEN` | Static access token |
+| `DIRECTUS_TOKEN` | Legacy fallback for token |
+| `BRIDGETOWN_DIRECTUS_LOG` | Set to `1` for verbose logging |
 
-- Multiple collections
-- Custom layouts per collection
-- Filtering, sorting, and pagination via `c.default_query` (**experimental**; not fully tested in production—see notes below)
-- Selective field output
+## Full Example
 
-**Note:** Filtering, sorting, and pagination via `c.default_query` is experimental and not yet fully tested in real Bridgetown projects. Please report issues or contribute test cases if you use this feature!
+```ruby
+# config/initializers.rb
+init :bridgetown_directus
 
-### Migrating from 0.1.x
+BridgetownDirectus.configure do |directus|
+  directus.api_url    = ENV["DIRECTUS_API_URL"]
+  directus.token      = ENV["DIRECTUS_API_TOKEN"]
+  directus.ssl_verify = false
 
-- **YAML config is no longer used.** All configuration is now in Ruby in `config/initializers.rb`.
-- Field mapping, transformation, and translations are handled in the initializer.
-- All Directus fields are output by default; use `c.field` for customization.
-- **Upgrading?** The `resource_type` option is no longer required. Use the Bridgetown collection name and layout instead. See the [CHANGELOG](CHANGELOG.md) for details.
+  # Data-only: populates site.data
+  directus.register_collection(:site_settings) do |c|
+    c.endpoint      = "site_settings"
+    c.resource_type = :data
+    c.singleton     = true
+  end
 
----
+  directus.register_collection(:navigation) do |c|
+    c.endpoint      = "navigation_items"
+    c.resource_type = :data
+    c.default_query = { sort: "sort" }
+  end
 
-For more details and advanced usage, see the [plugin README](https://github.com/Munkun-Estudio/bridgetown_directus).
+  # Output: generates Markdown files
+  directus.register_collection(:events) do |c|
+    c.endpoint      = "events"
+    c.resource_type = :custom_collection
+    c.layout        = "event"
+    c.default_query = {
+      filter: { status: { _eq: "published" } }.to_json
+    }
+  end
+end
+```
+
+## Migrating from 0.2.x
+
+- Configuration now uses `BridgetownDirectus.configure` block after `init :bridgetown_directus`
+- New `resource_type: :data` for collections that inject into `site.data`
+- New `singleton: true` for single-record collections
+- New `flatten_m2m` for M2M junction unwrapping
+- Build no longer fails when Directus credentials are missing — it skips gracefully
+- SSL verification is configurable via `ssl_verify`
 
 See [CHANGELOG.md](CHANGELOG.md) for upgrade notes and detailed changes.
+
+## License
+
+See [LICENSE](LICENSE) for details.
