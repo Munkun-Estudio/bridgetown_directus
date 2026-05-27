@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2](https://github.com/Munkun-Estudio/bridgetown_directus/compare/bridgetown_directus/v0.4.1...bridgetown_directus/v0.4.2) (2026-02-16)
+
+
+### Bug Fixes
+
+* move data fetching to post_read hook ([153fe48](https://github.com/Munkun-Estudio/bridgetown_directus/commit/153fe48b01216848a39a2178cf46ca7f95189dc3))
+
 ## [0.4.1](https://github.com/Munkun-Estudio/bridgetown_directus/compare/bridgetown_directus/v0.4.0...bridgetown_directus/v0.4.1) (2026-02-16)
 
 
